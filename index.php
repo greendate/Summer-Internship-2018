@@ -395,6 +395,7 @@
 
                         }
                         
+                    
                         # store individual article into data base
                         function store($doi, $title, $author, $publication, $abstract)
                         {
@@ -403,6 +404,7 @@
                                       VALUES ('$doi', '$title', '$author', '$publication', '$abstract')";   
                             $con->query($query);
                         }
+                    
                     
                         # makes request and stores results in the data base 
                         function XploreAPI($query)
@@ -524,6 +526,61 @@
                              echo("</tbody>
                                 </table>");
                         }
+                    
+                    
+                        # returns array of synonyms from most to least significant
+                        function get_synonyms($word)
+                        {
+                            $answer = array(); 
+                            $apikey = "Xot7CT1qrX5TBPACjroW";
+                            $language = "en_US"; 
+                            $endpoint = "http://thesaurus.altervista.org/thesaurus/v1";
+                            $ch = curl_init(); 
+                            curl_setopt($ch, CURLOPT_URL, "$endpoint?word=".urlencode($word)."&language=$language&key=$apikey&output=json"); 
+                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+                            $data = curl_exec($ch); 
+                            $info = curl_getinfo($ch); 
+                            curl_close($ch); 
+                            
+                            if ($info['http_code'] == 200) 
+                            { 
+                                $result = json_decode($data, true);  
+                                foreach ($result["response"] as $value) 
+                                { 
+                                    $string = $value["list"]["category"].$value["list"]["synonyms"];
+                                    
+                                    // get the synonym words from string
+                                    $i = 0;
+                                    $n = strlen($string);
+                                    
+                                    while($i < $n)
+                                    {
+                                        $j = $i;
+                                        $temp = "";
+                                        
+                                        while($j < $n)
+                                        {
+                                            if($string[$j] == '|' or
+                                               $string[$j] == '(' or $string[$j] == ')')
+                                            {
+                                                break;
+                                            }
+                                            $temp = $temp.$string[$j];
+                                            $j = $j + 1;
+                                        }
+                                        
+                                        if($temp != "generic term"
+                                          and $temp != "noun" and $temp != "")  
+                                        {
+                                            array_push($answer, $temp);
+                                        }
+                                        
+                                        $i = $j + 1;
+                                    }
+                                }
+                            }
+                            return $answer;
+                        }
 
                     
                         # sintax rules:
@@ -549,6 +606,12 @@
                             Search($array);
                             
                             printTable();
+                            
+                            # $synonyms = get_synonyms("array");
+                            # foreach($synonyms as $word)
+                            # {
+                            #     echo $word . "<br>";
+                            # }
                         }
 
                     ?>
