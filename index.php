@@ -196,7 +196,44 @@
             td.text-right {
               text-align: right;
             }
-
+             
+            .check-box {
+                text-align: center;
+                word-spacing: 5px;
+                margin-bottom: 0;
+             }
+             
+            .button2 {
+                
+                 display: inline-block;
+                 padding: 0.35em 1.2em;
+                 border: 0.1em solid #FFFFFF;
+                 margin: 0 0.3em 0.3em 0;
+                 border-radius: 0.12em;
+                 box-sizing: border-box;
+                 text-decoration: none;
+                 font-family: 'Roboto' ,sans-serif;
+                 font-weight: 300;
+                 color: #FFFFFF;
+                 text-align: center;
+                 transition: all 0.2s;
+            }
+            
+             .button2:hover {
+                 
+                 color: darkgray;
+                 background-color: #FFFFFF;
+            }
+             
+            @media all and (max-width:30em) {
+                
+                 .button2 {
+                     
+                    display:block;
+                    margin:0.4em auto;
+                 }
+                
+            }
                 
         </style>
         
@@ -263,7 +300,7 @@
 
                     <h1 class = "main-title"> <b> iSLR </b> </h1>
 
-                    <input type = "text" name = "phrase" value = "">
+                    <input type = "text" name = "phrase" value = "<?php echo isset($_POST['test']) ? $_POST['test'] : ''; ?>">
 
                     <button class = "button1" type = "submit" name = "search" value = ""> 
                         
@@ -462,6 +499,72 @@
                             }
                         }
                     
+                        
+                        function ACM($query)
+                        {
+                             $url = "https://dl.acm.org/exportformats_search.cfm?query=".$query."&filtered=&within=owners%2Eowner%3DHOSTED&dte=&bfr=&srt=%5Fscore&expformat=endnote";
+                            
+                            $curl = curl_init($url);
+                            curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+                            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
+                            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+                            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+                            $data = curl_exec($curl);
+                            curl_close($curl);
+                            
+                            $n = strlen($data); 
+                            $title = "";
+                            $author = "";
+                            $publication = "";
+                            $doi = "";
+                            $i = 0;
+                            
+                            while($i < $n)
+                            {
+                                $temp = "";
+                                $j = $i;
+                                while($j < $n)
+                                {
+                                    $temp = $temp . $data[$j];
+                                    $j = $j + 1;
+                                    if($data[$j] == '%') break;
+                                }
+                                $i = $j;
+                                
+                                if($temp[1] == '0')  # store article in the db and reset 
+                                {
+                                    if($title != "")
+                                    {    
+                                        store($doi, $title, $author, $publication, "");
+                                    }
+                                    $title = "";
+                                    $author = "";
+                                    $publication = "";
+                                    $doi = "";
+                                }
+                                else if($temp[1] == 'T')  # temp contains title
+                                {
+                                    $title = $temp;
+                                    $title = str_replace("%T", "", $title);
+                                }
+                                else if($temp[1] == 'A' and $author == "")  # author name in temp
+                                {
+                                    $author = $temp;
+                                    $author = str_replace("%A", "", $author);
+                                }
+                                else if($temp[1] == 'B')  # conference 
+                                {
+                                    $publication = $temp;
+                                    $publication = str_replace("%B", "", $publication);
+                                }
+                                else if($temp[1] == 'R')  # doi
+                                {
+                                    $doi = $temp;
+                                    $doi = str_replace("%R", "", $doi);
+                                }
+                            }
+                        }
+                    
                     
                         function split_keywords($array)
                         {
@@ -529,63 +632,86 @@
                     
                     
                         # returns array of synonyms from most to least significant
-                        function get_synonyms($word)
+                    
+                        function synonyms($word)
                         {
-                            $answer = array(); 
-                            $apikey = "Xot7CT1qrX5TBPACjroW";
-                            $language = "en_US"; 
-                            $endpoint = "http://thesaurus.altervista.org/thesaurus/v1";
-                            $ch = curl_init(); 
-                            curl_setopt($ch, CURLOPT_URL, "$endpoint?word=".urlencode($word)."&language=$language&key=$apikey&output=json"); 
-                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
-                            $data = curl_exec($ch); 
-                            $info = curl_getinfo($ch); 
-                            curl_close($ch); 
+                            $url = "https://api.datamuse.com/words?ml=".$word;
+                            $curl = curl_init($url);
+                            curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+                            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
+                            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+                            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+                            $data = curl_exec($curl);
+                            curl_close($curl);
                             
-                            if ($info['http_code'] == 200) 
-                            { 
-                                $result = json_decode($data, true);  
-                                foreach ($result["response"] as $value) 
-                                { 
-                                    $string = $value["list"]["category"].$value["list"]["synonyms"];
-                                    
-                                    // get the synonym words from string
-                                    $i = 0;
-                                    $n = strlen($string);
-                                    
-                                    while($i < $n)
-                                    {
-                                        $j = $i;
-                                        $temp = "";
-                                        
-                                        while($j < $n)
-                                        {
-                                            if($string[$j] == '|' or
-                                               $string[$j] == '(' or $string[$j] == ')')
-                                            {
-                                                break;
-                                            }
-                                            $temp = $temp.$string[$j];
-                                            $j = $j + 1;
-                                        }
-                                        
-                                        if($temp != "generic term"
-                                          and $temp != "noun" and $temp != "")  
-                                        {
-                                            array_push($answer, $temp);
-                                        }
-                                        
-                                        $i = $j + 1;
-                                    }
+                            $answer = array();
+                            $i = 1;
+                            $n = strlen($data) - 1;
+                            
+                            while($i < $n)
+                            {
+                                if($data[$i] != '{') 
+                                {
+                                    $i = $i + 1;
+                                    continue;
                                 }
+                                
+                                $i = $i + 1;
+                                $word = "";
+                                $flag = true;
+                                
+                                while($data[$i] != '}')
+                                {
+                                    if($data[$i] == ',') $flag = false;
+                                    if($flag) $word = $word . $data[$i]; 
+                                    $i = $i + 1;
+                                }
+                                
+                                # get the exact word we are looking for, insert into $answer list
+                                $temp = "";
+                                for($j = 8; $j < strlen($word) - 1; $j++)
+                                {
+                                    $temp = $temp . $word[$j];
+                                }
+                                array_push($answer, $temp);
                             }
                             return $answer;
                         }
 
                     
+                        function determine_synonyms($array)
+                        {
+                            echo "<h2> <b> Choose the synonyms </b> </h2> <br>";
+                            $n = count($array);
+                            echo "<div class = check-box>";
+                            echo "<form action = 'index.php' method = 'post'>";
+                            for($i = 0; $i < $n; $i++)
+                            {
+                                echo "<pre>";
+                                echo "<h3> <b> $array[$i] </b> </h3> <br>";
+                                $newline = 1;
+                                $temp = synonyms($array[$i]);
+                                $m = count($temp);
+                                for($j = 0; $j < $m; $j++)
+                                {
+                                    echo "<input type = 'checkbox' name = 'include[]' value = '$temp[$j]'/>$temp[$j] ";
+                                    if($newline % 7 == 0) echo "<br> <br>";
+                                    $newline += 1;
+                                }
+                                echo "</pre> <br>";
+                            }
+                            
+                            echo "<button class = 'button2' type='submit' name = 'done'>";
+                                echo "done";
+                            echo "</button>";
+                            
+                            echo "</form>";
+                            echo "</div>";
+                        }
+                    
+                            
                         # sintax rules:
-                        # using " " to merge more keywords into one
-                        # assigning @ to words which can be replaced by empty string (not necessarily included in query) 
+                        # using " " to merge more keywords into one 
 
                         if(isset ($_POST["search"])) {
 
@@ -594,24 +720,95 @@
                             $keywords = $_POST["phrase"];
                                 
                             $array = separate($keywords);
+                             
+                            # write entered keywords to the file 
+                            $file = 'keywords.txt';
+                            $handle = fopen($file, 'w') or die('Cannot open file');
+                            fwrite($handle, $keywords);
+                            
+                            determine_synonyms($array);
+                            
+                        }
+                    
+                        
+                        # user have choosen synonyms he wants, continue process
+                        
+                        if(isset($_POST['done']))
+                        {
+                            echo "<br>";
+                            
+                            $synonym = array(); # for each entered keyword, this 2d array will contain their synonyms 
+                            
+                            $temp = array();
+                            foreach($_POST['include'] as $value)
+                            {
+                                array_push($temp, $value);  #synonyms choosen 
+                            }
+                            
+                            #get entered keywords from file 
+                            $file = 'keywords.txt';
+                            $handle = fopen($file, 'r');
+                            $keywords = fread($handle,filesize($file));
+                            
+                            $array = separate($keywords);
+                            
+                            $n = count($array);
+                            $m = count($temp);
+                            $j = 0;
+                            
+                            # separate synonyms of keywords into groups(2d array) 
+                            for($i = 0; $i < $n; $i++)
+                            {
+                                $current = array();
+                                array_push($current, $array[$i]);
+                                $syn = synonyms($array[$i]);
                                 
+                                while($j < $m)
+                                {
+                                    if(array_search($temp[$j], $syn) != NULL)
+                                    {
+                                        array_push($current, $temp[$j]);
+                                    }
+                                    else break; # make cut when synonym doesn't belong to group 
+                                    $j++;
+                                }
+                                
+                                array_push($synonym, $current);  # pushing group into matrix 
+                            }
+                            
+                            /*
+                                        matrix
+                            
+                            for($i = 0; $i < $n; $i++)
+                            {
+                                for($j = 0; $j < count($synonym[$i]); $j++)
+                                {
+                                    echo $synonym[$i][$j]." ";
+                                }
+                                echo "<br>";
+                            }
+                            
+                            */
+                            
+                            # extend future queries with synonyms
+                            foreach($temp as $tmp) 
+                            {
+                                array_push($array, $tmp);
+                            }
+                            
                             $query = split_keywords($array);
                             
-                            $ACM_query = ACM_split_keywords($array);
-                                                
+                            $ACMquery = ACM_split_keywords($array);
+                            
                             XploreAPI($query);
                             
                             SpringerAPI($query);
                             
-                            Search($array);
+                            ACM($ACMquery);
+                            
+                            Search(separate($keywords));
                             
                             printTable();
-                            
-                            # $synonyms = get_synonyms("array");
-                            # foreach($synonyms as $word)
-                            # {
-                            #     echo $word . "<br>";
-                            # }
                         }
 
                     ?>
