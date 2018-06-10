@@ -214,16 +214,19 @@
                  text-decoration: none;
                  font-family: 'Roboto' ,sans-serif;
                  font-weight: 300;
-                 color: #FFFFFF;
+                 color: #d3d3d3;
+                 background-color: black;
                  text-align: center;
                  transition: all 0.2s;
+                 border-radius: 4px;
             }
             
              .button2:hover {
                  
-                 color: darkgray;
-                 background-color: #FFFFFF;
-            }
+                 color: white;
+                 background-color: #000000;
+                 border-radius: 4px;
+             }
              
             @media all and (max-width:30em) {
                 
@@ -313,73 +316,85 @@
                         error_reporting(E_ALL ^ E_NOTICE); 
                         ob_flush();
                         ob_clean();
-
                     
-                        function swap(&$a, &$b)
+                        
+                        # gets words and their synonyms returns appropriate mysql query 
+                    
+                        function form_query($matrix)
                         {
-                            $c = $a;
-                            $a = $b;
-                            $b = $c;
+                            $query = "SELECT doi, title, author, publication
+                                      FROM papers
+                                      WHERE ";
+                            
+                            $title_part = "(";
+                            $abstract_part = "(";
+                            $n = count($matrix);
+                            
+                            for($i = 0; $i < $n; $i++) 
+                            {
+                                $title_part = $title_part."(";
+                                $abstract_part = $abstract_part."(";
+                                $m = count($matrix[$i]);
+                                
+                                for($j = 0; $j < $m; $j++)
+                                {
+                                    $title_part = $title_part."title LIKE '%".$matrix[$i][$j]."%'";
+                                    $abstract_part = $abstract_part."abstract LIKE '%".$matrix[$i][$j]."%'";
+                                    
+                                    if($j < $m - 1)
+                                    {
+                                        $title_part = $title_part." OR "; 
+                                        $abstract_part = $abstract_part." OR ";
+                                    }
+                                }
+                                
+                                $title_part = $title_part.")";
+                                $abstract_part = $abstract_part.")";
+                                
+                                if($i < $n - 1)
+                                {
+                                    $title_part = $title_part." AND ";
+                                    $abstract_part = $abstract_part ." AND ";
+                                }
+                            }
+                            
+                            $title_part = $title_part . ")";
+                            $abstract_part = $abstract_part.")";
+                            
+                            return $query.$title_part." OR ".$abstract_part;
                         }
+                    
                         
                         $doi_list = array();
                         $title_list = array();
                         $author_list = array();
                         $publication_list = array();
-                        
-                        # find all permutations of given keywords, search for them in title and abstract of all articles in the db 
-                        function permute(&$array, $i, $n)
-                        {
-                            if($i == $n)
-                            {
-                                # we need expression appropriate for LIKE clause
-                                $like = "%";
-                                for($j = 0; $j < $n; $j++)
-                                {
-                                    $temp = $array[$j];
-                                    $like = $like . str_replace(' ', '%', $temp, $count[$temp]);
-                                    $like = $like . "%";
-                                }
-                                
-                                $con=new mysqli("localhost","root","", "islr");
-                                $query = "SELECT doi, title, author, publication
-                                          FROM papers
-                                          WHERE title LIKE '".$like."' OR abstract LIKE '".$like."'";
-                                
-                                $res = mysqli_query($con, $query);
-                                
-                                if($res)
-                                {
-                                    while($row = mysqli_fetch_array($res))
-                                    {
-                                        if(array_search($row[0], $GLOBALS['doi_list']) != NULL) continue; # paper already printed
-                                        
-                                        array_push($GLOBALS['doi_list'], $row[0]); 
-                                        array_push($GLOBALS['title_list'], $row[1]);
-                                        array_push($GLOBALS['author_list'], $row[2]);
-                                        array_push($GLOBALS['publication_list'], $row[3]);
-                                    }
-                                }
-                                return;
-                            }
-                            
-                            for($j = $i; $j < $n; $j++)
-                            {
-                                swap($array[$i], $array[$j]);
-                                permute($array, $i + 1, $n);
-                                swap($array[$i], $array[$j]);
-                            }
-                        }
-                    
-                        
-                        function Search($array)
+
+                        # gets matrix with synonyms array, obtains articles from the data base
+
+                        function Search($matrix)
                         {   
-                            sort($array);
-                            permute($array, 0, count($array));
+                            $con=new mysqli("localhost","root","", "islr");
+                            
+                            $query = form_query($matrix);
+                            
+                            $res = mysqli_query($con, $query);
+                                
+                            if($res)
+                            {
+                                while($row = mysqli_fetch_array($res))
+                                {       
+                                    array_push($GLOBALS['doi_list'], $row[0]); 
+                                    array_push($GLOBALS['title_list'], $row[1]);
+                                    array_push($GLOBALS['author_list'], $row[2]);
+                                    array_push($GLOBALS['publication_list'], $row[3]);
+                                }
+                            }
                         }
 
                     
                         # separate the keywords based on syntax rules, function returns array of strings
+                        
                         function separate($keywords)
                         {
                             $keyword = '';
@@ -428,8 +443,8 @@
                                 $i = $j;
 
                             }
+                            
                             return $array;
-
                         }
                         
                     
@@ -683,7 +698,7 @@
                         {
                             echo "<h2> <b> Choose the synonyms </b> </h2> <br>";
                             $n = count($array);
-                            echo "<div class = check-box>";
+                            echo "<div class = 'check-box'>";
                             echo "<form action = 'index.php' method = 'post'>";
                             for($i = 0; $i < $n; $i++)
                             {
@@ -691,6 +706,7 @@
                                 echo "<h3> <b> $array[$i] </b> </h3> <br>";
                                 $newline = 1;
                                 $temp = synonyms($array[$i]);
+                                sort($temp);
                                 $m = count($temp);
                                 for($j = 0; $j < $m; $j++)
                                 {
@@ -700,7 +716,6 @@
                                 }
                                 echo "</pre> <br>";
                             }
-                            
                             echo "<button class = 'button2' type='submit' name = 'done'>";
                                 echo "done";
                             echo "</button>";
@@ -708,8 +723,8 @@
                             echo "</form>";
                             echo "</div>";
                         }
-                    
                             
+                    
                         # sintax rules:
                         # using " " to merge more keywords into one 
 
@@ -731,27 +746,9 @@
                         }
                     
                         
-                        # user have choosen synonyms he wants, continue process
-                        
-                        if(isset($_POST['done']))
+                        function separate_synonyms($array, $temp)
                         {
-                            echo "<br>";
-                            
-                            $synonym = array(); # for each entered keyword, this 2d array will contain their synonyms 
-                            
-                            $temp = array();
-                            foreach($_POST['include'] as $value)
-                            {
-                                array_push($temp, $value);  #synonyms choosen 
-                            }
-                            
-                            #get entered keywords from file 
-                            $file = 'keywords.txt';
-                            $handle = fopen($file, 'r');
-                            $keywords = fread($handle,filesize($file));
-                            
-                            $array = separate($keywords);
-                            
+                            $synonym = array(); # for each entered keyword, this 2d array will contain their synonyms
                             $n = count($array);
                             $m = count($temp);
                             $j = 0;
@@ -776,20 +773,35 @@
                                 array_push($synonym, $current);  # pushing group into matrix 
                             }
                             
-                            /*
-                                        matrix
+                            return $synonym;
+                        }
+                    
+                    
+                        # user have choosen synonyms he wants, continue process
+                    
+                        if(isset($_POST['done']))
+                        {
+                            echo "<br>"; 
                             
-                            for($i = 0; $i < $n; $i++)
+                            $temp = array();
+                            
+                            if(isset($_POST['include']))
                             {
-                                for($j = 0; $j < count($synonym[$i]); $j++)
+                                foreach($_POST['include'] as $value)
                                 {
-                                    echo $synonym[$i][$j]." ";
+                                    array_push($temp, $value);  # synonyms choosen 
                                 }
-                                echo "<br>";
                             }
+                    
+                            # get entered keywords from file 
+                            $file = 'keywords.txt';
+                            $handle = fopen($file, 'r');
+                            $keywords = fread($handle,filesize($file));
                             
-                            */
+                            $array = separate($keywords);
                             
+                            $synonym = separate_synonyms($array, $temp); 
+                                                        
                             # extend future queries with synonyms
                             foreach($temp as $tmp) 
                             {
@@ -806,11 +818,11 @@
                             
                             ACM($ACMquery);
                             
-                            Search(separate($keywords));
+                            Search($synonym);
                             
                             printTable();
                         }
-
+                    
                     ?>
                     
                 </form>
