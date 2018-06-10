@@ -199,9 +199,14 @@
              
             .check-box {
                 text-align: center;
-                word-spacing: 5px;
+                word-spacing: 2px;
                 margin-bottom: 0;
              }
+             
+            input[type="checkbox"] {
+                
+                 vertical-align: text-bottom;
+            }
              
             .button2 {
                 
@@ -237,6 +242,23 @@
                  }
                 
             }
+             
+             .scrollbar {
+                
+                height: 200px;
+                width: 100%;
+                overflow-y: scroll;
+                overflow-x: hidden;
+             }
+             
+             .box {
+                 
+                 width: 50%;
+                 margin-left: 25%;
+                 padding: 5px;
+                 border: 1px solid black;
+                 background-color: #f1f1f1;
+             }
                 
         </style>
         
@@ -702,19 +724,20 @@
                             echo "<form action = 'index.php' method = 'post'>";
                             for($i = 0; $i < $n; $i++)
                             {
-                                echo "<pre>";
+                                echo "<div class = 'box'>";
                                 echo "<h3> <b> $array[$i] </b> </h3> <br>";
-                                $newline = 1;
                                 $temp = synonyms($array[$i]);
                                 sort($temp);
                                 $m = count($temp);
+                                echo "<div class = 'scrollbar'>";
                                 for($j = 0; $j < $m; $j++)
                                 {
-                                    echo "<input type = 'checkbox' name = 'include[]' value = '$temp[$j]'/>$temp[$j] ";
-                                    if($newline % 7 == 0) echo "<br> <br>";
-                                    $newline += 1;
+                                    echo "<input type = 'checkbox' name = 'include[]' value = '$temp[$j]'/> $temp[$j]";
+                                    echo "<br> <br>";
                                 }
-                                echo "</pre> <br>";
+                                echo "</div>";
+                                echo "</div>";
+                                echo "<br>";
                             }
                             echo "<button class = 'button2' type='submit' name = 'done'>";
                                 echo "done";
@@ -728,7 +751,7 @@
                         # sintax rules:
                         # using " " to merge more keywords into one 
 
-                        if(isset ($_POST["search"])) {
+                        if(isset($_POST["search"])) {
 
                             echo "<br>";
                             
