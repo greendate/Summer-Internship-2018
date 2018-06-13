@@ -344,7 +344,7 @@
                     
                         function form_query($matrix)
                         {
-                            $query = "SELECT doi, title, author, publication
+                            $query = "SELECT doi, title, author, publication, abstract
                                       FROM papers
                                       WHERE ";
                             
@@ -391,6 +391,7 @@
                         $title_list = array();
                         $author_list = array();
                         $publication_list = array();
+                        $abstract_list = array();
 
                         # gets matrix with synonyms array, obtains articles from the data base
 
@@ -410,6 +411,7 @@
                                     array_push($GLOBALS['title_list'], $row[1]);
                                     array_push($GLOBALS['author_list'], $row[2]);
                                     array_push($GLOBALS['publication_list'], $row[3]);
+                                    array_push($GLOBALS['abstract_list'], $row[4]);
                                 }
                             }
                         }
@@ -555,8 +557,9 @@
                             $publication = "";
                             $doi = "";
                             $i = 0;
+                            $articles = -1;
                             
-                            while($i < $n)
+                            while($i < $n and $articles <= 25)
                             {
                                 $temp = "";
                                 $j = $i;
@@ -578,6 +581,7 @@
                                     $author = "";
                                     $publication = "";
                                     $doi = "";
+                                    $articles += 1;
                                 }
                                 else if($temp[1] == 'T')  # temp contains title
                                 {
@@ -635,7 +639,7 @@
                         }
                     
                         
-                        function printTable()
+                        function printTable($brother)
                         {
                             $out0 = $GLOBALS['title_list'];
                             $out1 = $GLOBALS['author_list'];
@@ -645,6 +649,7 @@
                             echo("<table class="."table-fill".">
                                     <thead>
                                         <tr>
+                                            <th class="."text-left".">#</th>
                                             <th class="."text-left".">Title</th>
                                             <th class="."text-left".">Author</th>
                                             <th class="."text-left".">Publication</th>
@@ -652,19 +657,47 @@
                                         </tr>
                                     </thead>
                                   <tbody class="."table-hover".">");
-        
+                            
+                            $num = 1;
                             for($i = 0; $i < count($GLOBALS['doi_list']); $i++)
                             {
+                                if($brother[$i] != -1) continue;
+                                
                                 echo("<tr>
+                                        
+                                        <td class="."text-left"."> $num. </td>
                                         <td class="."text-left"."> $out0[$i] </td>
                                         <td class="."text-left"."> $out1[$i] </td>
                                         <td class="."text-left"."> $out2[$i] </td>
                                         <td class="."text-left"."> $out3[$i] </td>
                                     </tr>");
+                                
+                                for($j = $i + 1; $j < count($GLOBALS['doi_list']); $j++)
+                                {
+                                    if($brother[$j] == $i) 
+                                    {
+                                        echo("<tr>
+                                        
+                                        <td class="."text-left"."> </td>
+                                        <td class="."text-left"."> $out0[$j] </td>
+                                        <td class="."text-left"."> $out1[$j] </td>
+                                        <td class="."text-left"."> $out2[$j] </td>
+                                        <td class="."text-left"."> $out3[$j] </td>
+                                    </tr>");
+                                    } 
+                                }
+                                
+                                $num += 1;
                             }
                             
                              echo("</tbody>
                                 </table>");
+                            
+                            echo "<br>";
+                                
+                            echo "<button class = 'button2' type='submit' name = 'reset' onclick = 'index.php'>";
+                                echo "reset";
+                            echo "</button>";
                         }
                     
                     
@@ -765,9 +798,8 @@
                             fwrite($handle, $keywords);
                             
                             determine_synonyms($array);
-                            
                         }
-                    
+                
                         
                         function separate_synonyms($array, $temp)
                         {
@@ -800,6 +832,89 @@
                         }
                     
                     
+                        function isAlpha($c)
+                        {
+                            if($c >= 'a' and $c <= 'z') return true;
+                            if($c >= 'A' and $c <= 'Z') return true;
+                            return false;
+                        }
+                    
+                        function getWords($sentence)
+                        {
+                            $answer = "";
+                            $n = strlen($sentence);
+                            $i = 0;
+
+                            while($i < $n)
+                            {
+                                if(!isAlpha($sentence[$i]))  # separator, not relevant
+                                {
+                                    $i++;
+                                    continue;
+                                }
+
+                                # next word is located between indices i and j
+                                $j = $i;
+                                $word = "";
+                                while($j < $n)
+                                {
+                                    if(!isAlpha($sentence[$j])) break;
+                                    $word = $word . $sentence[$j];
+                                    $j++;
+                                }
+
+                                $answer = $answer . $word;
+                                $answer = $answer . "%20";
+                                $i = $j;
+
+                            }
+                            
+                            return $answer;
+                        }
+                    
+                    
+                        function similarContent($a, $b)
+                        {
+                            $url = "https://api.dandelion.eu/datatxt/sim/v1/?text1=".getWords($a)."&text2=".getWords($b)."&token=d60e49c441b942b991b17bd949e6fe7c";
+                            
+                            $ch = curl_init();
+                            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                            curl_setopt($ch, CURLOPT_URL, $url);
+                            $result = curl_exec($ch);
+                            curl_close($ch);
+
+                            $obj = json_decode($result);
+                            
+                            if($obj->similarity >= 0.75) return true;
+                            return false;
+                        }
+                    
+                        
+                        function findSimilars()
+                        {
+                            $arr0 = $GLOBALS['title_list'];
+                            $arr1 = $GLOBALS['abstract_list'];
+                            $n = count($arr0);
+                            $brother = array();
+                            for($i = 0; $i < $n; $i++) array_push($brother, -1);
+                            
+                            for($i = 0; $i < $n; $i++)
+                            {
+                                if($brother[$i] != -1) continue;
+                                for($j = $i + 1; $j < $n; $j++)
+                                {
+                                    if(similarContent($arr0[$i], $arr0[$j]))
+                                    {
+                                        $brother[$j] = $i;
+                                    }
+                                }
+                            }
+                            
+                            return $brother; # for each paper points first article with similar content 
+                        }
+                    
+                    
                         # user have choosen synonyms he wants, continue process
                     
                         if(isset($_POST['done']))
@@ -824,8 +939,9 @@
                             $array = separate($keywords);
                             
                             $synonym = separate_synonyms($array, $temp); 
-                                                        
+                            
                             # extend future queries with synonyms
+                            
                             foreach($temp as $tmp) 
                             {
                                 array_push($array, $tmp);
@@ -843,7 +959,7 @@
                             
                             Search($synonym);
                             
-                            printTable();
+                            printTable(findSimilars());
                         }
                     
                     ?>
