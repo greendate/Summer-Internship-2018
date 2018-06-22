@@ -203,6 +203,11 @@
                 margin-bottom: 0;
              }
              
+             
+             .radio-botton {
+                 word-spacing: 2px;
+             }
+             
             input[type="checkbox"] {
                 
                  vertical-align: text-bottom;
@@ -335,6 +340,7 @@
 
                     <?php
                         
+                        ini_set('max_execution_time', 10000);
                         error_reporting(E_ALL ^ E_NOTICE); 
                         ob_flush();
                         ob_clean();
@@ -749,10 +755,50 @@
                         }
 
                     
-                        function determine_synonyms($array)
+                        function sort_synonyms()
+                        {
+                            echo "<div class = 'radio-button'>";
+                            
+                            echo "<h4> <b> Sort the synonyms by: </b> <br> <br> </h4>";
+                            
+                            echo "<p> <b>";
+                            echo "<input type='radio' name='sort'
+                            value='alphabetical'> alphabetical order <br>";
+                            
+                            echo "<input type='radio' name='sort'
+                            value='relevance'> relevance meaning";
+                            echo " </b> </p> <br>";
+                            
+                            echo "</div>";
+                            
+                            echo "<button class = 'button2' type='submit' name = 'continue'>";
+                                echo "continue";
+                            echo "</button>";
+                        }
+                    
+                        
+                        if(isset($_POST["continue"]))
+                        {
+                            $file = 'keywords.txt';
+                            $handle = fopen($file, 'r');
+                            $keywords = fread($handle,filesize($file));
+                            
+                            $sort_temp = false;
+                            $array = separate($keywords);
+                            
+                            $sort = $_POST['sort'];
+                            if($sort == "alphabetical") $sort_temp = true; 
+                            
+                            determine_synonyms($array, $sort_temp);
+                        }
+                        
+                    
+                        function determine_synonyms($array, $sort_temp)
                         {
                             echo "<h2> <b> Choose the synonyms </b> </h2> <br>";
+                            
                             $n = count($array);
+                    
                             echo "<div class = 'check-box'>";
                             echo "<form action = 'index.php' method = 'post'>";
                             for($i = 0; $i < $n; $i++)
@@ -760,7 +806,9 @@
                                 echo "<div class = 'box'>";
                                 echo "<h3> <b> $array[$i] </b> </h3> <br>";
                                 $temp = synonyms($array[$i]);
-                                sort($temp);
+                                
+                                if($sort_temp) sort($temp);  # sort by relevance or alphabetically
+                                
                                 $m = count($temp);
                                 echo "<div class = 'scrollbar'>";
                                 for($j = 0; $j < $m; $j++)
@@ -789,15 +837,13 @@
                             echo "<br>";
                             
                             $keywords = $_POST["phrase"];
-                                
-                            $array = separate($keywords);
                              
                             # write entered keywords to the file 
                             $file = 'keywords.txt';
                             $handle = fopen($file, 'w') or die('Cannot open file');
                             fwrite($handle, $keywords);
                             
-                            determine_synonyms($array);
+                            sort_synonyms();
                         }
                 
                         
@@ -839,6 +885,7 @@
                             return false;
                         }
                     
+                    
                         function getWords($sentence)
                         {
                             $answer = "";
@@ -864,17 +911,20 @@
                                 }
 
                                 $answer = $answer . $word;
-                                $answer = $answer . "%20";
+                                $answer = $answer . " ";
                                 $i = $j;
 
                             }
                             
                             return $answer;
                         }
-                    
-                    
+
+                            
                         function similarContent($a, $b)
                         {
+                            /*
+                                                Using API
+                            
                             $url = "https://api.dandelion.eu/datatxt/sim/v1/?text1=".getWords($a)."&text2=".getWords($b)."&token=d60e49c441b942b991b17bd949e6fe7c";
                             
                             $ch = curl_init();
@@ -888,14 +938,158 @@
                             
                             if($obj->similarity >= 0.75) return true;
                             return false;
+                            */
+                            
+                            $a = getWords($a);
+                            $b = getWords($b);
+                            similar_text($a, $b, $percent);
+                            return ($percent >= 50); 
                         }
                     
+                    
+                        function get_closest_synonyms($word)
+                        {
+                            $url = "https://api.datamuse.com/words?ml=".$word."&max=5";
+                            $curl = curl_init($url);
+                            curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+                            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
+                            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+                            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+                            $data = curl_exec($curl);
+                            curl_close($curl);
+                            
+                            $answer = array();
+                            $i = 1;
+                            $n = strlen($data) - 1;
+                            
+                            while($i < $n)
+                            {
+                                if($data[$i] != '{') 
+                                {
+                                    $i = $i + 1;
+                                    continue;
+                                }
+                                
+                                $i = $i + 1;
+                                $word = "";
+                                $flag = true;
+                                
+                                while($data[$i] != '}')
+                                {
+                                    if($data[$i] == ',') $flag = false;
+                                    if($flag) $word = $word . $data[$i]; 
+                                    $i = $i + 1;
+                                }
+                                
+                                # get the exact word we are looking for, insert into $answer list
+                                $temp = "";
+                                for($j = 8; $j < strlen($word) - 1; $j++)
+                                {
+                                    $temp = $temp . $word[$j];
+                                }
+                                array_push($answer, $temp);
+                            }
+                            return $answer;
+                        }
+                    
+                    
+                        function getWordsAsArray($sentence)
+                        {
+                            $answer = array();
+                            $n = strlen($sentence);
+                            $i = 0;
+
+                            while($i < $n)
+                            {
+                                if(!isAlpha($sentence[$i]))  # separator, not relevant
+                                {
+                                    $i++;
+                                    continue;
+                                }
+
+                                # next word is located between indices i and j
+                                $j = $i;
+                                $word = "";
+                                while($j < $n)
+                                {
+                                    if(!isAlpha($sentence[$j])) break;
+                                    $word = $word . $sentence[$j];
+                                    $j++;
+                                }
+
+                                array_push($answer, $word);
+                                $i = $j;
+
+                            }
+                            
+                            return $answer;
+                        }
+                    
+                        
+                        # We want to consider two synonyms as same word while doing a similarity test (our similarity test will be more accurate)
+                        
+                        # As it's too slow to look for list of synonyms for first word, and then search for second word in the that list each 
+                        # time while comparing two words of different titles 
+                        
+                        # I decided to create special titles only for similarity comparison, some words will be replaced 
+                        # with their synonym which has been used before for composing special titles
+                    
+                        # Our goal here is not to have case where two synonyms appear in group of words
+                        #that were used to compose those special titles
+                    
+                        function transform_for_comparison($array)
+                        {
+                            $answer = array();
+                            $included_words = array();
+                            $n = count($array);
+                            
+                            for($i = 0; $i < $n; $i++)  # iterate theough all the titles
+                            {
+                                $alternative = "";
+                                $words = getWordsAsArray($array[$i]);
+                                foreach($words as $word)  # now go through each word of title
+                                {
+                                    # try to find synonym of that word that has been used before
+                                    
+                                    $synonym_included = false;
+                                    $cs = get_closest_synonyms($word);  # look only for few synonyms becouse of faster execution 
+                                    
+                                    foreach($cs as $temp)
+                                    {
+                                        # look if some of his synonyms has been already included in list, if no synonym found then insert the
+                                        # current word in list
+                                        
+                                        if(array_search($temp, $included_words) != NULL)
+                                        {
+                                            $alternative = $alternative . $temp . " ";  # replace the word with its synonym in special title
+                                            $synonym_included = true;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if(!$synonym_included)
+                                    {
+                                        $alternative = $alternative . $word . " ";  # include that word in special title 
+                                        
+                                        if(array_search($word, $included_words) == NULL) array_push($included_words, $word);
+                                    }
+                                }
+                                
+                                # echo $array[$i]."<br>".$alternative."<br> <br>";
+                                
+                                array_push($answer, $alternative); # push the special title to the final answer 
+                            }
+                            
+                            return $array;
+                        }
+                        
                         
                         function findSimilars()
                         {
                             $arr0 = $GLOBALS['title_list'];
-                            $arr1 = $GLOBALS['abstract_list'];
+                            $arr0 = transform_for_comparison($arr0);
                             $n = count($arr0);
+                            
                             $brother = array();
                             for($i = 0; $i < $n; $i++) array_push($brother, -1);
                             
@@ -918,7 +1112,7 @@
                         # user have choosen synonyms he wants, continue process
                     
                         if(isset($_POST['done']))
-                        {
+                        {   
                             echo "<br>"; 
                             
                             $temp = array();
@@ -960,6 +1154,7 @@
                             Search($synonym);
                             
                             printTable(findSimilars());
+                            
                         }
                     
                     ?>
