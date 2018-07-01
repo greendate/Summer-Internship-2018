@@ -11,7 +11,8 @@
          <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
          <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
          <link rel="shortcut icon" type="image/png" href="img/favicon.png"/>
-         <style>
+         
+        <style>
              .navbar {
                     margin-bottom: 0;
                     border-radius: 0;
@@ -264,6 +265,55 @@
                  border: 1px solid black;
                  background-color: #f1f1f1;
              }
+            
+            #text {
+                
+                position: absolute;
+                top: 73%;
+                left: 49.7%;
+                margin: 7% 0px 0px -150px;
+                font-size: 18px;
+                text-align: center;
+                width: 300px;
+            }
+
+            #barbox_a {
+                              
+                position: absolute;
+                top: 80%;
+                left: 49.7%;
+                margin: 7% 0px 0px -160px;
+                width: 304px;
+                height: 24px;
+                background-color: black;
+            }
+            
+            .per {
+                
+                position: absolute;
+                top: 80%;
+                font-size: 18px;
+                left: 49.7%;
+                margin: 7% 0px 0px 150px;
+                background-color: #FFFFFF;
+            }
+
+            .bar {
+                
+                position: absolute;
+                top: 80%;
+                left: 49.7%;
+                margin: 7.15% 0px 0px -158px;
+                width: 0px;
+                height: 20px;
+                background-color: #666666;
+            }
+
+            .blank {
+                
+                background-color: white;
+                width: 300px;
+            }
                 
         </style>
         
@@ -344,8 +394,8 @@
                         error_reporting(E_ALL ^ E_NOTICE); 
                         ob_flush();
                         ob_clean();
-                    
                         
+                    
                         # gets words and their synonyms returns appropriate mysql query 
                     
                         function form_query($matrix)
@@ -1025,6 +1075,54 @@
                             return $answer;
                         }
                     
+                    
+                        function initialize_progress_bar()
+                        {
+                            echo "<div id='barbox_a'></div>";
+                            echo "<div class='bar blank'></div>";
+                        }
+                    
+                        
+                        function progress_bar_update($percent)
+                        {
+                            echo "<div class='per'>{$percent}
+                                %</div>\n";
+                                
+                            echo "<div class='bar' style='width:", 
+                                $percent * 3,"px'></div>\n";
+
+                            ob_flush();
+                            flush();
+                        }
+                    
+                        
+                        function hide_progress_bar()
+                        {
+                            echo "<style>
+                                
+                                #text {
+                
+                                    visibility: hidden;
+                                }
+
+                                #barbox_a {
+                              
+                                    visibility: hidden;
+                                }
+            
+                                .per {
+                
+                                    visibility: hidden;
+                                }
+
+                                .bar {
+                                
+                                    visibility: hidden;
+                                }
+                                
+                                </style>";
+                        }
+                    
                         
                         # We want to consider two synonyms as same word while doing a similarity test (our similarity test will be more accurate)
                         
@@ -1042,9 +1140,16 @@
                             $answer = array();
                             $included_words = array();
                             $n = count($array);
+                            initialize_progress_bar();
                             
                             for($i = 0; $i < $n; $i++)  # iterate theough all the titles
-                            {
+                            {   
+                                # calculate the percentage of finished progress and update the progress bar
+                                
+                                $percent = (($i + 1) / $n) * 100;
+                                $percent = intval($percent);
+                                progress_bar_update($percent);
+                                
                                 $alternative = "";
                                 $words = getWordsAsArray($array[$i]);
                                 foreach($words as $word)  # now go through each word of title
@@ -1080,6 +1185,7 @@
                                 array_push($answer, $alternative); # push the special title to the final answer 
                             }
                             
+                            hide_progress_bar();
                             return $array;
                         }
                         
@@ -1095,7 +1201,9 @@
                             
                             for($i = 0; $i < $n; $i++)
                             {
+                                
                                 if($brother[$i] != -1) continue;
+                                
                                 for($j = $i + 1; $j < $n; $j++)
                                 {
                                     if(similarContent($arr0[$i], $arr0[$j]))
