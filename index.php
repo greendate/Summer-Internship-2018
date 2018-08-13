@@ -7,12 +7,20 @@
          <meta charset="utf-8">
          <meta name="viewport" content="width=device-width, initial-scale=1">
          <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+         <link rel="stylesheet" type="text/css" href="css/ionicons.min.css">
          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
          <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
          <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
          <link rel="shortcut icon" type="image/png" href="img/favicon.png"/>
          
         <style>
+            
+             html, body {
+                 
+                    max-width: 100%;
+                    overflow-x: hidden;
+             }
+            
              .navbar {
                     margin-bottom: 0;
                     border-radius: 0;
@@ -75,9 +83,12 @@
              .button1 {
                  border-radius: 4px;
                  margin-bottom: 35px;
+                 background-color: #fff;
+                 border-color: #fff;
+                 border-style: solid;
              }
              
-             .identifier{
+             .identifier {
                  font-family: sans-serif;
                  margin: 0;
                  margin-left: 25%;
@@ -204,7 +215,6 @@
                 margin-bottom: 0;
              }
              
-             
              .radio-botton {
                  word-spacing: 2px;
              }
@@ -263,7 +273,9 @@
                  margin-left: 25%;
                  padding: 5px;
                  border: 1px solid black;
-                 background-color: #f1f1f1;
+                 /*background-color: #f1f1f1;*/
+                 background-color: #000;
+                 color: #d3d3d3;
              }
             
             #text {
@@ -277,6 +289,7 @@
                 width: 300px;
             }
 
+            /*
             #barbox_a {
                               
                 position: absolute;
@@ -287,23 +300,24 @@
                 height: 24px;
                 background-color: black;
             }
+            */
             
             .per {
                 
                 position: absolute;
-                top: 80%;
-                font-size: 18px;
-                left: 49.7%;
-                margin: 7% 0px 0px 150px;
+                top: 75%;
+                font-size: 20px;
+                left: 38%;
+                margin: 7% 0px 0px 310px;
                 background-color: #FFFFFF;
             }
 
             .bar {
                 
                 position: absolute;
-                top: 80%;
-                left: 49.7%;
-                margin: 7.15% 0px 0px -158px;
+                top: 75%;
+                left: 38%;
+                margin: 7.2% 0px 0px 0px;
                 width: 0px;
                 height: 20px;
                 background-color: #666666;
@@ -311,10 +325,41 @@
 
             .blank {
                 
-                background-color: white;
+                background-color: #e0e0e0;
                 width: 300px;
             }
                 
+            input[type="text"]:focus {
+                
+                outline: none;
+            }
+            
+            select {
+                
+                display: inline-block;
+                float: right;
+                margin-right: 33%;
+                color: #d3d3d3;
+                background-color: #000;
+                border: none;
+                outline: none;
+            }
+            
+            select:hover {
+                
+                color: #fff;
+            }
+            
+            .positioned-right {
+                
+                float: right;
+                margin-bottom: 0;
+                margin-right: 25%;
+                margin-left: 0;
+                border: none;
+                outline: none;
+            }
+            
         </style>
         
     </head>
@@ -380,11 +425,12 @@
 
                     <h1 class = "main-title"> <b> iSLR </b> </h1>
 
-                    <input type = "text" name = "phrase" value = "<?php echo isset($_POST['test']) ? $_POST['test'] : ''; ?>">
+                    <input type = "text" name = "phrase" value = "<?php echo isset($_POST['test']) ? $_POST['test'] : ''; ?>" placeholder = "Enter your keywords here..">
 
                     <button class = "button1" type = "submit" name = "search" value = ""> 
                         
-                        <img src="img/Button_15-512.png" width = "20px" height= "20px"> 
+                       <!-- <img src="img/Button_15-512.png" width = "20px" height= "20px">  -->
+                        <i class = "ion-search"> </i> Search
                     
                     </button>
 
@@ -392,6 +438,7 @@
                         
                         ini_set('max_execution_time', 10000);
                         error_reporting(E_ALL ^ E_NOTICE); 
+                        error_reporting(E_ERROR | E_PARSE);
                         ob_flush();
                         ob_clean();
                         
@@ -752,7 +799,7 @@
                             echo "<br>";
                                 
                             echo "<button class = 'button2' type='submit' name = 'reset' onclick = 'index.php'>";
-                                echo "reset";
+                                echo "<i class = 'ion-refresh'> </i> reset";
                             echo "</button>";
                         }
                     
@@ -841,16 +888,39 @@
                             
                             determine_synonyms($array, $sort_temp);
                         }
+                    
                         
+                        if(isset($_POST['refresh']) and isset($_POST['selectsort']))
+                        {
+                            $file = 'keywords.txt';
+                            $handle = fopen($file, 'r');
+                            $keywords = fread($handle,filesize($file));
+                            
+                            $array = separate($keywords);
+                            determine_synonyms($array, $_POST['selectsort']);
+                        }
+                    
                     
                         function determine_synonyms($array, $sort_temp)
                         {
+                            
                             echo "<h2> <b> Choose the synonyms </b> </h2> <br>";
+                            
+                            echo "<form id = 'selectForm' method = 'post'>";
+                            echo "<button name = 'refresh' class = 'button2 positioned-right'> <i class = 'ion-refresh'> </i> refresh </button>";
+                            echo "<br>";
+                            echo "<select name = 'selectsort'>";
+                            echo "<option selected disabled> Sort synonyms by </option>";
+                            echo "<option value = 0> relevance meaning </option>";
+                            echo "<option value = 1> alphabetical order </option>";
+                            echo "</select>";
+                            echo "</form>"; 
                             
                             $n = count($array);
                     
                             echo "<div class = 'check-box'>";
                             echo "<form action = 'index.php' method = 'post'>";
+
                             for($i = 0; $i < $n; $i++)
                             {
                                 echo "<div class = 'box'>";
@@ -870,8 +940,9 @@
                                 echo "</div>";
                                 echo "<br>";
                             }
+                            
                             echo "<button class = 'button2' type='submit' name = 'done'>";
-                                echo "done";
+                                echo "<i class = 'ion-android-done-all'> </i> done";
                             echo "</button>";
                             
                             echo "</form>";
@@ -893,7 +964,9 @@
                             $handle = fopen($file, 'w') or die('Cannot open file');
                             fwrite($handle, $keywords);
                             
-                            sort_synonyms();
+                            // sort_synonyms();
+                            $array = separate($keywords);
+                            determine_synonyms($array, 0);
                         }
                 
                         
@@ -968,8 +1041,49 @@
                             
                             return $answer;
                         }
+                    
 
+                        function LevenshteinDistance($a, $b)
+                        {
+                            $n = count($a);
+                            $m = count($b);
                             
+                            // init
+                            $dp = array(array());
+                            $empty_array = array();
+                            for($j = 0; $j <= $m; $j++) array_push($empty_array, 0);
+                            for($i = 0; $i <= $n; $i++)
+                            {
+                                array_push($dp, $empty_array);
+                            }
+                            
+                            // main part of algorithm
+                            for($i = 0; $i <= $n; $i++)
+                            {
+                                for($j = 0; $j <= $m; $j++)
+                                {
+                                    if($i == 0) $dp[$i][$j] = $j;
+                                    else if($j == 0) $dp[$i][$j] = $i;
+                                    else if($a[$i - 1] == $b[$j - 1]) $dp[$i][$j] = $dp[$i - 1][$j - 1];
+                                    else $dp[$i][$j] = 1 + min($dp[$i - 1][$j - 1], min($dp[$i - 1][$j], $dp[$i][$j - 1])); // costs of replace, remove and insert
+                                }
+                            }
+                            return $dp[$n][$m];
+                        }
+                    
+                    
+                        function areSimilar($a, $b)
+                        {
+                            // if we need to change less than half of words we will consider two arcticles as similar
+                            $edit = LevenshteinDistance($a, $b);
+                            if($edit <= count($a) / 2) return 1;
+                            
+                            $edit_reverse = LevenshteinDistance($b, $a);
+                            if($edit_reverse <= count($b) / 2) return 1;
+                            return 0;
+                        }
+                    
+                    
                         function similarContent($a, $b)
                         {
                             /*
@@ -990,10 +1104,9 @@
                             return false;
                             */
                             
-                            $a = getWords($a);
-                            $b = getWords($b);
-                            similar_text($a, $b, $percent);
-                            return ($percent >= 50); 
+                            $a = getWordsAsArray($a);
+                            $b = getWordsAsArray($b);
+                            return areSimilar($a, $b); 
                         }
                     
                     
@@ -1078,7 +1191,7 @@
                     
                         function initialize_progress_bar()
                         {
-                            echo "<div id='barbox_a'></div>";
+                            // echo "<div id='barbox_a'></div>";
                             echo "<div class='bar blank'></div>";
                         }
                     
@@ -1133,7 +1246,7 @@
                         # with their synonym which has been used before for composing special titles
                     
                         # Our goal here is not to have case where two synonyms appear in group of words
-                        #that were used to compose those special titles
+                        # that were used to compose those special titles
                     
                         function transform_for_comparison($array)
                         {
